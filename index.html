@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เครื่องคิดเลขสถิติ ม.6 (โหมดฝึกหัดและทดสอบ)</title>
+  
+  <!-- โหลด Tailwind CSS สำหรับตกแต่งความสวยงาม -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- โหลด React และ ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  
+  <!-- โหลด Babel สำหรับแปลงโค้ด React (JSX) ให้ทำงานบนบราวเซอร์ได้ โดยระบุเวอร์ชันที่เสถียรเพื่อป้องกันบั๊ก -->
+  <script src="https://unpkg.com/@babel/standalone@7.24.4/babel.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <!-- จุดที่แอปพลิเคชันจะมาแสดงผล -->
+  <div id="root">
+    <!-- จะแสดงข้อความนี้ถ้าโหลดแอปไม่ขึ้น -->
+    <div style="text-align: center; padding: 50px; font-family: sans-serif; color: #666;">
+      <h2>กำลังโหลดเครื่องคิดเลขสถิติ...</h2>
+      <p>หากหน้าจอนี้ค้างเกิน 5 วินาที กรุณาตรวจสอบว่าคุณได้อัปโหลดไฟล์นี้ขึ้นระบบ (เช่น Netlify) หรือไม่<br>การเปิดไฟล์จากคอมพิวเตอร์โดยตรงอาจถูกบราวเซอร์บล็อกการทำงาน</p>
+    </div>
+  </div>
+
+  <!-- เริ่มเขียนโค้ด React (เพิ่ม data-type="module" เพื่อแก้ปัญหา Cannot use import statement outside a module) -->
+  <script type="text/babel" data-type="module" data-presets="react,env">
+    const { useState, useEffect } = React;
+
+    // =====================================================================
+    // Component หลัก
+    // =====================================================================
+    const App = () => {
+      const [activeTab, setActiveTab] = useState('PRACTICE');
+
+      return (
+        <div className="min-h-screen bg-gray-100 flex flex-col items-center pt-8 pb-12 font-sans px-4">
+          <div className="mb-8 flex justify-center bg-gray-300 rounded-full p-1 shadow-inner w-full max-w-md">
+            <button
+              onClick={() => setActiveTab('PRACTICE')}
+              className={`flex-1 px-4 py-2 rounded-full font-bold text-sm sm:text-base transition-all ${
+                activeTab === 'PRACTICE' ? 'bg-white shadow-md text-blue-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🧮 โหมดใช้งานจริง
+            </button>
+            <button
+              onClick={() => setActiveTab('EXAM')}
+              className={`flex-1 px-4 py-2 rounded-full font-bold text-sm sm:text-base transition-all ${
+                activeTab === 'EXAM' ? 'bg-white shadow-md text-green-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              📝 โหมดทดสอบนักเรียน
+            </button>
+          </div>
+          <div className="w-full flex justify-center">
+            {activeTab === 'PRACTICE' ? <StatMode /> : <ExamMode />}
+          </div>
+        </div>
+      );
+    };
+
+    // =====================================================================
+    // 1. โหมดใช้งานจริง (Original Mode)
+    // =====================================================================
+    const StatMode = () => {
+      const [input, setInput] = useState('');
+      const [topDisplay, setTopDisplay] = useState('โหมดสถิติ ม.6 (ใส่ "," คั่นข้อมูล)');
+      const [result, setResult] = useState('');
+
+      const parseData = (str) => {
+        if (!str) return [];
+        return str.split(',').map((val) => parseFloat(val.trim())).filter((val) => !isNaN(val));
+      };
+
+      const calculateStat = (type) => {
+        const data = parseData(input);
+        if (data.length === 0) { setResult('Error: ไม่มีข้อมูล'); return; }
+
+        const n = data.length;
+        let res = 0, label = '';
+        const sortedData = [...data].sort((a, b) => a - b);
+        const sum = data.reduce((acc, val) => acc + val, 0);
+        const mean = sum / n;
+
+        switch (type) {
+          case 'N': label = `n =`; res = n; break;
+          case 'SUM': label = `Σx =`; res = sum; break;
+          case 'MEAN': label = `x̄ =`; res = mean; break;
+          case 'MEDIAN':
+            label = `Med =`;
+            res = n % 2 === 0 ? (sortedData[n / 2 - 1] + sortedData[n / 2]) / 2 : sortedData[Math.floor(n / 2)];
+            break;
+          case 'MODE':
+            label = `Mode =`;
+            const freq = {};
+            let maxFreq = 0;
+            data.forEach((val) => { freq[val] = (freq[val] || 0) + 1; if (freq[val] > maxFreq) maxFreq = freq[val]; });
+            const modes = Object.keys(freq).filter((val) => freq[val] === maxFreq);
+            res = maxFreq === 1 ? 'ไม่มีฐานนิยม' : modes.join(', ');
+            break;
+          case 'RANGE': label = `Range =`; res = sortedData[n - 1] - sortedData[0]; break;
+          case 'SD_POP': label = `σ =`; res = Math.sqrt(data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n); break;
+          case 'SD_SAM':
+            label = `S =`;
+            if (n <= 1) res = 'Error: n>1'; else res = Math.sqrt(data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n - 1));
+            break;
+          case 'VAR_POP': label = `σ² =`; res = data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n; break;
+          case 'VAR_SAM':
+            label = `S² =`;
+            if (n <= 1) res = 'Error: n>1'; else res = data.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / (n - 1);
+            break;
+          case 'SORT': label = `Sorted =`; res = sortedData.join(', '); break;
+          default: break;
+        }
+
+        setTopDisplay(`[${data.join(', ')}]`);
+        if (typeof res === 'number') res = parseFloat(res.toFixed(4));
+        setResult(`${label} ${res}`);
+      };
+
+      const handleKeyPress = (key) => {
+        if (key === 'AC') { setInput(''); setResult(''); setTopDisplay('โหมดสถิติ ม.6'); }
+        else if (key === 'DEL') { setInput(input.slice(0, -1)); }
+        else { setInput(input + key); }
+      };
+
+      return (
+        <div className="relative w-full max-w-4xl flex justify-center">
+          <div className="bg-gray-800 p-6 rounded-3xl shadow-2xl w-full max-w-sm border-t-8 border-l-4 border-gray-700">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <span className="text-gray-300 font-bold tracking-widest text-lg italic">STAT-CALC</span>
+              <span className="text-gray-400 text-xs font-mono">fx-M6 (PRO)</span>
+            </div>
+            <div className="bg-[#c2d6c6] p-4 rounded-lg shadow-inner mb-6 border-4 border-gray-600 min-h-[100px] flex flex-col justify-between font-mono break-all">
+              <div className="text-gray-700 text-sm h-12 overflow-y-auto leading-tight">
+                {topDisplay}
+                {input && topDisplay.includes('โหมดสถิติ') ? `\nData: ${input}` : ''}
+                {input && !topDisplay.includes('โหมดสถิติ') ? `\nNew: ${input}` : ''}
+              </div>
+              <div className="text-right text-black font-bold text-xl mt-2 truncate">
+                {result || input || '0'}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-2">
+                <StatButton label="n (จำนวน)" onClick={() => calculateStat('N')} />
+                <StatButton label="Σx (ผลรวม)" onClick={() => calculateStat('SUM')} />
+                <StatButton label="เรียงข้อมูล" onClick={() => calculateStat('SORT')} />
+                <StatButton label="พิสัย" onClick={() => calculateStat('RANGE')} />
+                <StatButton label="x̄ (Mean)" onClick={() => calculateStat('MEAN')} highlight={true} />
+                <StatButton label="Med" onClick={() => calculateStat('MEDIAN')} highlight={true} />
+                <StatButton label="Mode" onClick={() => calculateStat('MODE')} highlight={true} />
+                <div className="flex items-center justify-center text-[10px] text-gray-400 font-semibold leading-none">CENTRAL</div>
+                <StatButton label="σ (SD ปชก)" onClick={() => calculateStat('SD_POP')} />
+                <StatButton label="S (SD ดย)" onClick={() => calculateStat('SD_SAM')} />
+                <StatButton label="σ² (Var)" onClick={() => calculateStat('VAR_POP')} />
+                <StatButton label="S² (Var)" onClick={() => calculateStat('VAR_SAM')} />
+              </div>
+              <hr className="border-gray-600 my-2" />
+              <div className="grid grid-cols-4 gap-3">
+                <NumButton label="7" onClick={() => handleKeyPress('7')} />
+                <NumButton label="8" onClick={() => handleKeyPress('8')} />
+                <NumButton label="9" onClick={() => handleKeyPress('9')} />
+                <ActionButton label="DEL" onClick={() => handleKeyPress('DEL')} color="bg-red-500 hover:bg-red-400" />
+                <NumButton label="4" onClick={() => handleKeyPress('4')} />
+                <NumButton label="5" onClick={() => handleKeyPress('5')} />
+                <NumButton label="6" onClick={() => handleKeyPress('6')} />
+                <ActionButton label="AC" onClick={() => handleKeyPress('AC')} color="bg-orange-500 hover:bg-orange-400" />
+                <NumButton label="1" onClick={() => handleKeyPress('1')} />
+                <NumButton label="2" onClick={() => handleKeyPress('2')} />
+                <NumButton label="3" onClick={() => handleKeyPress('3')} />
+                <ActionButton label="," onClick={() => handleKeyPress(',')} color="bg-blue-500 hover:bg-blue-400" />
+                <NumButton label="0" onClick={() => handleKeyPress('0')} className="col-span-2" />
+                <NumButton label="." onClick={() => handleKeyPress('.')} />
+                <NumButton label="(-)" onClick={() => handleKeyPress('-')} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // =====================================================================
+    // 2. โหมดทดสอบนักเรียน (Exam Mode - ระบบปลดล็อกตัวช่วย & 2 ส่วน)
+    // =====================================================================
+    const ExamMode = () => {
+      const [question, setQuestion] = useState(null);
+      const [tokens, setTokens] = useState([]);
+      const [result, setResult] = useState('');
+      const [unlockedHelpers, setUnlockedHelpers] = useState({ n: false, sumX: false, sumX2: false, mean: false, sumSqDiff: false });
+      const [activeHelperTarget, setActiveHelperTarget] = useState(null);
+      const [helperFeedback, setHelperFeedback] = useState(null);
+      const [answersStatus, setAnswersStatus] = useState({ part1: null, part2a: null, part2b: null });
+
+      const calculateIQR = (sortedArr) => {
+        const getMedian = (arr) => {
+          const mid = Math.floor(arr.length / 2);
+          return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+        };
+        const mid = Math.floor(sortedArr.length / 2);
+        const lowerHalf = sortedArr.slice(0, mid);
+        const upperHalf = sortedArr.length % 2 === 0 ? sortedArr.slice(mid) : sortedArr.slice(mid + 1);
+        return getMedian(upperHalf) - getMedian(lowerHalf);
+      };
+
+      const generateQuestion = () => {
+        // เพิ่มความหลากหลายของชุดข้อมูล
+        const scenarios = [
+          { min: 1, max: 20 },     // ข้อมูลค่าน้อย (ทั่วไป)
+          { min: 40, max: 100 },   // คะแนนสอบ
+          { min: 10, max: 50 }     // ข้อมูลระดับกลาง
+        ];
+        const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+        const n = Math.floor(Math.random() * 6) + 4; // 4-9
+        
+        let data = Array.from({ length: n }, () => Math.floor(Math.random() * (scenario.max - scenario.min + 1)) + scenario.min);
+        
+        // บังคับให้มี Mode เดียว เพื่อไม่ให้การพิมพ์ตอบซับซ้อน
+        const duplicateVal = data[0];
+        data[1] = duplicateVal;
+        
+        const sorted = [...data].sort((a, b) => a - b);
+        const sum = data.reduce((a, b) => a + b, 0);
+        const mean = sum / n;
+        const sumSq = data.reduce((a, b) => a + (b * b), 0);
+        const sumSqDiff = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0);
+
+        const part1Pool = [
+          { id: 'MEAN', label: 'ค่าเฉลี่ยเลขคณิต (x̄)', expected: mean },
+          { id: 'MEDIAN', label: 'มัธยฐาน (Median)', expected: n % 2 === 0 ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 : sorted[Math.floor(n / 2)] },
+          { id: 'MODE', label: 'ฐานนิยม (Mode)', expected: duplicateVal }
+        ];
+        const p1 = part1Pool[Math.floor(Math.random() * part1Pool.length)];
+
+        const part2aPool = [
+          { id: 'RANGE', label: 'พิสัย (Range)', expected: sorted[n - 1] - sorted[0] },
+          { id: 'IQR', label: 'พิสัยระหว่างควอร์ไทล์ (IQR)', expected: calculateIQR(sorted) }
+        ];
+        const p2a = part2aPool[Math.floor(Math.random() * part2aPool.length)];
+
+        const part2bPool = [
+          { id: 'VAR_POP', label: 'ความแปรปรวนประชากร (σ²)', expected: sumSqDiff / n },
+          { id: 'VAR_SAM', label: 'ความแปรปรวนกลุ่มตัวอย่าง (S²)', expected: sumSqDiff / (n - 1) },
+          { id: 'SD_POP', label: 'ส่วนเบี่ยงเบนมาตรฐานประชากร (σ)', expected: Math.sqrt(sumSqDiff / n) },
+          { id: 'SD_SAM', label: 'ส่วนเบี่ยงเบนมาตรฐานกลุ่มตัวอย่าง (S)', expected: Math.sqrt(sumSqDiff / (n - 1)) }
+        ];
+        const p2b = part2bPool[Math.floor(Math.random() * part2bPool.length)];
+
+        setQuestion({ data, sorted, n, sum, sumSq, mean, sumSqDiff, part1: p1, part2a: p2a, part2b: p2b });
+        setTokens([]); setResult('');
+        setUnlockedHelpers({ n: false, sumX: false, sumX2: false, mean: false, sumSqDiff: false });
+        setActiveHelperTarget(null); setHelperFeedback(null);
+        setAnswersStatus({ part1: null, part2a: null, part2b: null });
+      };
+
+      useEffect(() => { generateQuestion(); }, []);
+
+      if (!question) return null; // ป้องกัน Error ก่อนโหลดโจทย์เสร็จ
+
+      const helperConfig = {
+        n: { label: 'n', val: question.n },
+        sumX: { label: 'Σx', val: question.sum },
+        sumX2: { label: 'Σx²', val: question.sumSq },
+        mean: { label: 'x̄', val: question.mean },
+        sumSqDiff: { label: 'Σ(x-x̄)²', val: question.sumSqDiff }
+      };
+
+      const addToken = (displayStr, evalStr) => { setTokens(prev => [...prev, { display: displayStr, eval: evalStr }]); setHelperFeedback(null); };
+      const calculate = () => {
+        if (tokens.length === 0) return;
+        const evalStr = tokens.map(t => t.eval).join('');
+        try {
+          const val = new Function('return ' + evalStr)();
+          if (typeof val === 'number' && !isNaN(val)) setResult(parseFloat(val.toFixed(4)));
+          else setResult('Error');
+        } catch (e) { setResult('Error'); }
+      };
+      const handleDel = () => { setTokens(prev => prev.slice(0, -1)); setResult(''); setHelperFeedback(null); };
+      const handleAC = () => { setTokens([]); setResult(''); setHelperFeedback(null); };
+
+      const clickHelper = (key) => {
+        if (unlockedHelpers[key]) { addToken(helperConfig[key].label, helperConfig[key].val); } 
+        else { setActiveHelperTarget(key); setHelperFeedback(null); }
+      };
+
+      const submitToHelper = () => {
+        if (!activeHelperTarget) return;
+        if (result === '' || result === 'Error') { setHelperFeedback({ status: 'error', text: 'กด = ก่อนส่ง' }); return; }
+        const userVal = parseFloat(result);
+        const expectedVal = parseFloat(helperConfig[activeHelperTarget].val.toFixed(4));
+        if (Math.abs(userVal - expectedVal) <= 0.01) {
+          setUnlockedHelpers(prev => ({ ...prev, [activeHelperTarget]: true }));
+          setActiveHelperTarget(null);
+          setHelperFeedback({ status: 'success', text: 'ปลดล็อกสำเร็จ!' });
+          setTimeout(() => setHelperFeedback(null), 2000);
+        } else { setHelperFeedback({ status: 'error', text: 'ค่ายังไม่ถูกต้อง ลองใหม่' }); }
+      };
+
+      const submitExamAnswer = (partKey, expectedValue) => {
+        if (result === '' || result === 'Error') { alert('คำนวณผลลัพธ์ในหน้าจอก่อนครับ'); return; }
+        const userVal = parseFloat(result);
+        const expectedFloat = parseFloat(expectedValue.toFixed(4));
+        if (Math.abs(userVal - expectedFloat) <= 0.01) { setAnswersStatus(prev => ({ ...prev, [partKey]: 'success' })); } 
+        else { setAnswersStatus(prev => ({ ...prev, [partKey]: 'error' })); }
+      };
+
+      return (
+        <div className="flex flex-col xl:flex-row gap-6 w-full max-w-6xl mx-auto">
+          <div className="bg-white rounded-3xl p-6 shadow-xl flex-1 border-t-8 border-green-500 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center"><span className="bg-green-100 p-2 rounded-lg mr-3 shadow-sm">📝</span> กระดานทดสอบ</h2>
+                <button onClick={generateQuestion} className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded-md text-gray-700 font-semibold transition-colors">🔄 สุ่มโจทย์ใหม่</button>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-sm mb-6 text-center">
+                <p className="text-sm text-gray-500 font-semibold mb-2">ชุดข้อมูลที่กำหนดให้:</p>
+                <p className="text-2xl font-mono tracking-widest text-black py-2">{question.data.join(', ')}</p>
+                <p className="text-xs text-gray-400 mt-1">เรียง: {question.sorted.join(', ')}</p>
+              </div>
+              <div className="space-y-6">
+                <div className="border-l-4 border-blue-500 pl-4">
+                  <h3 className="font-bold text-lg text-blue-800 mb-2">ส่วนที่ 1: การหาค่ากลาง</h3>
+                  <div className="flex flex-col sm:flex-row justify-between items-center bg-blue-50 p-3 rounded-lg border border-blue-100 gap-4">
+                    <span className="text-lg font-medium text-gray-800 flex-1">จงหา <span className="font-bold text-blue-600 underline decoration-blue-300 decoration-2">{question.part1.label}</span></span>
+                    {answersStatus.part1 === 'success' ? (
+                      <div className="bg-green-100 text-green-700 font-bold py-2 px-4 rounded-lg flex items-center">✅ ถูกต้อง ({parseFloat(question.part1.expected.toFixed(4))})</div>
+                    ) : (
+                      <div className="flex flex-col items-end">
+                        <button onClick={() => submitExamAnswer('part1', question.part1.expected)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-transform active:scale-95 whitespace-nowrap">ส่งคำตอบส่วนที่ 1</button>
+                        {answersStatus.part1 === 'error' && <span className="text-red-500 text-xs mt-1 font-bold">❌ ผิด ลองใหม่</span>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="border-l-4 border-purple-500 pl-4">
+                  <h3 className="font-bold text-lg text-purple-800 mb-2">ส่วนที่ 2: การวัดการกระจาย</h3>
+                  <div className="space-y-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-center bg-purple-50 p-3 rounded-lg border border-purple-100 gap-4">
+                      <span className="text-lg font-medium text-gray-800 flex-1">2.1 จงหา <span className="font-bold text-purple-600 underline decoration-purple-300 decoration-2">{question.part2a.label}</span></span>
+                      {answersStatus.part2a === 'success' ? (
+                        <div className="bg-green-100 text-green-700 font-bold py-2 px-4 rounded-lg flex items-center">✅ ถูกต้อง ({parseFloat(question.part2a.expected.toFixed(4))})</div>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          <button onClick={() => submitExamAnswer('part2a', question.part2a.expected)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-transform active:scale-95 whitespace-nowrap">ส่งคำตอบข้อ 2.1</button>
+                          {answersStatus.part2a === 'error' && <span className="text-red-500 text-xs mt-1 font-bold">❌ ผิด ลองใหม่</span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row justify-between items-center bg-purple-50 p-3 rounded-lg border border-purple-100 gap-4">
+                      <span className="text-lg font-medium text-gray-800 flex-1">2.2 จงหา <span className="font-bold text-purple-600 underline decoration-purple-300 decoration-2">{question.part2b.label}</span></span>
+                      {answersStatus.part2b === 'success' ? (
+                        <div className="bg-green-100 text-green-700 font-bold py-2 px-4 rounded-lg flex items-center">✅ ถูกต้อง ({parseFloat(question.part2b.expected.toFixed(4))})</div>
+                      ) : (
+                        <div className="flex flex-col items-end">
+                          <button onClick={() => submitExamAnswer('part2b', question.part2b.expected)} className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow transition-transform active:scale-95 whitespace-nowrap">ส่งคำตอบข้อ 2.2</button>
+                          {answersStatus.part2b === 'error' && <span className="text-red-500 text-xs mt-1 font-bold">❌ ผิด ลองใหม่</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-gray-800 p-6 rounded-3xl shadow-2xl w-full max-w-[400px] border-t-8 border-l-4 border-gray-700 mx-auto flex flex-col">
+            <div className="flex justify-between items-center mb-4 px-2">
+              <span className="text-gray-300 font-bold tracking-widest text-lg italic">STAT-EXAM</span>
+              <span className="text-gray-400 text-xs font-mono">fx-UNLOCK</span>
+            </div>
+            <div className="mb-4 bg-gray-900 p-3 rounded-xl border border-gray-700">
+              <p className="text-xs text-gray-400 text-center mb-2 font-semibold tracking-wider">🔒 คลิกเพื่อปลดล็อกตัวช่วย</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {Object.keys(helperConfig).map(key => {
+                  const isUnlocked = unlockedHelpers[key];
+                  const isTarget = activeHelperTarget === key;
+                  return (
+                    <button key={key} onClick={() => clickHelper(key)} className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${isUnlocked ? 'bg-indigo-500 text-white shadow-lg border-b-2 border-indigo-700 hover:bg-indigo-400' : isTarget ? 'bg-yellow-500 text-black shadow-[0_0_10px_rgba(234,179,8,0.5)] animate-pulse border-2 border-yellow-300' : 'bg-gray-700 text-gray-400 border border-gray-600 border-dashed hover:bg-gray-600'}`}>
+                      {isUnlocked ? `${helperConfig[key].label} = ${parseFloat(helperConfig[key].val.toFixed(2))}` : helperConfig[key].label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="bg-[#c2d6c6] p-4 rounded-lg shadow-inner mb-4 border-4 border-gray-600 min-h-[110px] flex flex-col justify-between font-mono break-all relative">
+              {activeHelperTarget && <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap shadow-sm z-10">เป้าหมาย: หาค่า {helperConfig[activeHelperTarget].label}</div>}
+              {helperFeedback && <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs px-2 py-1 rounded font-bold shadow-md z-10 ${helperFeedback.status === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>{helperFeedback.text}</div>}
+              <div className="text-gray-700 text-sm h-12 overflow-y-auto leading-tight pr-1 mt-2">{tokens.map(t => t.display).join('') || '...'}</div>
+              <div className="text-right text-black font-bold text-2xl mt-1 truncate">{result !== '' ? result : '0'}</div>
+            </div>
+            <div className="space-y-3 flex-1">
+              <button onClick={submitToHelper} disabled={!activeHelperTarget} className={`w-full py-2 rounded-lg font-bold text-sm transition-all border-b-4 active:border-b-0 active:translate-y-1 ${activeHelperTarget ? 'bg-yellow-500 hover:bg-yellow-400 text-black border-yellow-700 shadow-[0_0_15px_rgba(234,179,8,0.3)]' : 'bg-gray-700 text-gray-500 border-gray-800 cursor-not-allowed opacity-50'}`}>
+                {activeHelperTarget ? `📥 ส่งคำตอบเข้าปุ่ม [ ${helperConfig[activeHelperTarget].label} ]` : 'เลือกตัวช่วยด้านบนก่อน'}
+              </button>
+              <hr className="border-gray-600 my-1" />
+              <div className="grid grid-cols-4 gap-2">
+                <ActionButton label="(" onClick={() => addToken('(', '(')} color="bg-gray-600 hover:bg-gray-500" className="h-10 text-sm" />
+                <ActionButton label=")" onClick={() => addToken(')', ')')} color="bg-gray-600 hover:bg-gray-500" className="h-10 text-sm" />
+                <ActionButton label="x²" onClick={() => addToken('²', '**2')} color="bg-gray-600 hover:bg-gray-500" className="h-10 text-sm" />
+                <ActionButton label="√" onClick={() => addToken('√(', 'Math.sqrt(')} color="bg-gray-600 hover:bg-gray-500" className="h-10 text-sm" />
+              </div>
+              <div className="grid grid-cols-4 gap-3 mt-2">
+                <NumButton label="7" onClick={() => addToken('7', '7')} className="h-12 text-lg" />
+                <NumButton label="8" onClick={() => addToken('8', '8')} className="h-12 text-lg" />
+                <NumButton label="9" onClick={() => addToken('9', '9')} className="h-12 text-lg" />
+                <ActionButton label="DEL" onClick={handleDel} color="bg-red-500 hover:bg-red-400" className="h-12 text-sm" />
+                <NumButton label="4" onClick={() => addToken('4', '4')} className="h-12 text-lg" />
+                <NumButton label="5" onClick={() => addToken('5', '5')} className="h-12 text-lg" />
+                <NumButton label="6" onClick={() => addToken('6', '6')} className="h-12 text-lg" />
+                <ActionButton label="AC" onClick={handleAC} color="bg-orange-500 hover:bg-orange-400" className="h-12 text-sm" />
+                <NumButton label="1" onClick={() => addToken('1', '1')} className="h-12 text-lg" />
+                <NumButton label="2" onClick={() => addToken('2', '2')} className="h-12 text-lg" />
+                <NumButton label="3" onClick={() => addToken('3', '3')} className="h-12 text-lg" />
+                <ActionButton label="÷" onClick={() => addToken('÷', '/')} color="bg-blue-500 hover:bg-blue-400" className="h-12" />
+                <NumButton label="0" onClick={() => addToken('0', '0')} className="col-span-2 h-12 text-lg" />
+                <NumButton label="." onClick={() => addToken('.', '.')} className="h-12 text-lg" />
+                <ActionButton label="×" onClick={() => addToken('×', '*')} color="bg-blue-500 hover:bg-blue-400" className="h-12" />
+                <ActionButton label="-" onClick={() => addToken('-', '-')} color="bg-blue-500 hover:bg-blue-400" className="h-12" />
+                <ActionButton label="+" onClick={() => addToken('+', '+')} color="bg-blue-500 hover:bg-blue-400" className="col-span-2 h-12" />
+                <ActionButton label="=" onClick={calculate} color="bg-green-600 hover:bg-green-500" className="h-12" />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // Shared Components
+    const StatButton = ({ label, onClick, highlight }) => <button onClick={onClick} className={`py-2 px-1 rounded-md text-[10px] sm:text-xs font-semibold uppercase shadow-md active:translate-y-1 transition-transform flex items-center justify-center text-center leading-tight ${highlight ? 'bg-gray-600 text-white hover:bg-gray-500 border-b-2 border-gray-800' : 'bg-gray-700 text-gray-200 hover:bg-gray-600 border-b-2 border-gray-900'}`}>{label}</button>;
+    const NumButton = ({ label, onClick, className = '' }) => <button onClick={onClick} className={`bg-gray-300 text-black rounded-lg shadow-md hover:bg-gray-200 border-b-4 border-gray-400 active:border-b-0 active:translate-y-1 transition-all ${className}`}>{label}</button>;
+    const ActionButton = ({ label, onClick, color, className = '' }) => <button onClick={onClick} className={`${color} text-white rounded-lg font-bold shadow-md border-b-4 border-black/30 active:border-b-0 active:translate-y-1 transition-all ${className}`}>{label}</button>;
+
+    // สั่งให้ React เรนเดอร์ลงใน id="root"
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
